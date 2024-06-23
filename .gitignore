@@ -1,2 +1,6 @@
 /lib64/
 /lib/
+/.idea
+/bin
+/include
+/share
