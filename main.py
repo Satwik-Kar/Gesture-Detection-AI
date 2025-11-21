@@ -13,13 +13,18 @@ BRUSH_THICKNESS = 10
 ERASER_SIZE = 200 
 HOVER_INDICATOR_RADIUS = 15
 
-COLOR_DRAW = (0, 0, 255)      
+COLOR_BLUE = (255, 0, 0)
+COLOR_GREEN = (0, 255, 0)
+COLOR_RED = (0, 0, 255)
+COLOR_YELLOW = (0, 255, 255)
 COLOR_ERASER = (255, 255, 255)        
 COLOR_HOVER = (0, 255, 0)       
 COLOR_HEADER_BG = (40, 40, 40)  
 COLOR_TEXT_MAIN = (255, 255, 255)
 COLOR_TEXT_SUB = (200, 200, 200)
 COLOR_TEXT_GESTURE = (255, 255, 0)
+
+active_color = COLOR_RED
 
 KEY_QUIT_Q = ord('q')
 KEY_QUIT_ESC = 27
@@ -101,6 +106,17 @@ def classify_hand_landmarks(landmarks, fingers):
     else:
         return "Unknown"
 
+def draw_color_palette(img):
+    cv2.rectangle(img, (300, 10), (420, 90), COLOR_BLUE, cv2.FILLED)
+    cv2.rectangle(img, (440, 10), (560, 90), COLOR_GREEN, cv2.FILLED)
+    cv2.rectangle(img, (580, 10), (700, 90), COLOR_RED, cv2.FILLED)
+    cv2.rectangle(img, (720, 10), (840, 90), COLOR_YELLOW, cv2.FILLED)
+    
+    cv2.rectangle(img, (300, 10), (420, 90), (255, 255, 255), 2)
+    cv2.rectangle(img, (440, 10), (560, 90), (255, 255, 255), 2)
+    cv2.rectangle(img, (580, 10), (700, 90), (255, 255, 255), 2)
+    cv2.rectangle(img, (720, 10), (840, 90), (255, 255, 255), 2)
+
 while True:
     success, img = cap.read()
     if not success:
@@ -117,11 +133,14 @@ while True:
     results = hands.process(img_rgb)
 
     cv2.rectangle(img, (0, 0), (w, 100), COLOR_HEADER_BG, cv2.FILLED)
-    cv2.putText(img, f"Mode (Press 'm'): {current_mode}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, COLOR_TEXT_MAIN, 2)
-
-    if current_mode == MODE_WRITING:
-        cv2.putText(img, "1 Finger: Write  |  2 Fingers: Hover  |  3 Fingers: Erase", (20, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_TEXT_SUB, 2)
     
+    if current_mode == MODE_WRITING:
+        draw_color_palette(img)
+        cv2.putText(img, "1 Finger: Write | 2 Fingers: Select/Hover | 3 Fingers: Erase", (900, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, COLOR_TEXT_SUB, 2)
+        cv2.circle(img, (w - 100, 50), 40, active_color, cv2.FILLED) 
+    else:
+        cv2.putText(img, f"Mode: {current_mode}", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, COLOR_TEXT_MAIN, 2)
+
     if results.multi_hand_landmarks:
         for hand_lms in results.multi_hand_landmarks:
             fingers = get_fingers_status(hand_lms.landmark)
@@ -153,16 +172,28 @@ while True:
                         xp, yp = x1, y1
 
                     elif fingers[1] and fingers[2]:
-                        cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, COLOR_HOVER, 2)
                         xp, yp = x1, y1
+                        
+                        if y1 < 100:
+                            if 300 < x1 < 420:
+                                active_color = COLOR_BLUE
+                            elif 440 < x1 < 560:
+                                active_color = COLOR_GREEN
+                            elif 580 < x1 < 700:
+                                active_color = COLOR_RED
+                            elif 720 < x1 < 840:
+                                active_color = COLOR_YELLOW
+                            cv2.rectangle(img, (x1-10, y1-10), (x1+10, y1+10), (255, 255, 255), 2)
+                        else:
+                            cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, active_color, 2)
 
                     elif fingers[1] and not fingers[2]:
-                        cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, COLOR_DRAW, cv2.FILLED)
+                        cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, active_color, cv2.FILLED)
                         
                         if xp == 0 and yp == 0:
                             xp, yp = x1, y1
                         
-                        cv2.line(img_canvas, (xp, yp), (x1, y1), COLOR_DRAW, BRUSH_THICKNESS)
+                        cv2.line(img_canvas, (xp, yp), (x1, y1), active_color, BRUSH_THICKNESS)
                         xp, yp = x1, y1
                     else:
                         xp, yp = 0, 0
