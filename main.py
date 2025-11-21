@@ -17,9 +17,9 @@ cap.set(4, 1080)
 
 img_canvas = None
 brush_thickness = 10
-eraser_thickness = 50
+eraser_thickness = 150
 draw_color = (255, 0, 255)
-
+brush_radius = 130
 current_mode = "Writing"
 
 xp, yp = 0, 0
@@ -103,7 +103,7 @@ while True:
                             fingers.append(0)
 
                     if fingers[1] and fingers[2] and fingers[3]:
-                        cv2.circle(img, (x1, y1), 30, (0, 0, 0), cv2.FILLED)
+                        cv2.circle(img, (x1, y1), brush_radius, (0, 0, 0), cv2.FILLED)
                         cv2.putText(img, "Eraser", (x1+35, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
                         
                         if xp == 0 and yp == 0:
