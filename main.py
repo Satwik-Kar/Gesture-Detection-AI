@@ -1,27 +1,52 @@
 import cv2
 import numpy as np
 import mediapipe as mp
-import math
+
+CAM_WIDTH = 1920
+CAM_HEIGHT = 1080
+WINDOW_NAME = "Hand Gesture & Writing App"
+
+MIN_DETECTION_CONF = 0.8
+MIN_TRACKING_CONF = 0.8
+
+BRUSH_THICKNESS = 10
+ERASER_THICKNESS = 150
+BRUSH_RADIUS = 130
+HOVER_INDICATOR_RADIUS = 15
+
+COLOR_DRAW = (255, 0, 255)      
+COLOR_ERASER = (0, 0, 0)        
+COLOR_HOVER = (0, 255, 0)       
+COLOR_HEADER_BG = (40, 40, 40)  
+COLOR_TEXT_MAIN = (255, 255, 255)
+COLOR_TEXT_SUB = (200, 200, 200)
+COLOR_TEXT_GESTURE = (255, 255, 0)
+
+KEY_QUIT_Q = ord('q')
+KEY_QUIT_ESC = 27
+KEY_CLEAR = ord('c')
+KEY_MODE = ord('m')
+
+MODE_WRITING = "Writing"
+MODE_GESTURE = "Gesture"
 
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.8, max_num_hands=1)
+hands = mp_hands.Hands(
+    min_detection_confidence=MIN_DETECTION_CONF, 
+    min_tracking_confidence=MIN_TRACKING_CONF, 
+    max_num_hands=1
+)
 mp_draw = mp.solutions.drawing_utils
 
-window_name = "Hand Gesture & Writing App"
-cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 cap = cv2.VideoCapture(0)
-cap.set(3, 1920)
-cap.set(4, 1080)
+cap.set(3, CAM_WIDTH)
+cap.set(4, CAM_HEIGHT)
 
 img_canvas = None
-brush_thickness = 10
-eraser_thickness = 150
-draw_color = (255, 0, 255)
-brush_radius = 130
-current_mode = "Writing"
-
+current_mode = MODE_WRITING
 xp, yp = 0, 0
 
 def classify_hand_landmarks(landmarks):
@@ -31,15 +56,17 @@ def classify_hand_landmarks(landmarks):
     ring_finger_open = landmarks[16].y < landmarks[14].y
     pinky_finger_open = landmarks[20].y < landmarks[18].y
 
-    if all([thumb_open, index_finger_open, middle_finger_open, ring_finger_open, pinky_finger_open]):
+    fingers_state = [thumb_open, index_finger_open, middle_finger_open, ring_finger_open, pinky_finger_open]
+
+    if all(fingers_state):
         return "Open Hand"
-    elif not any([thumb_open, index_finger_open, middle_finger_open, ring_finger_open, pinky_finger_open]):
+    elif not any(fingers_state):
         return "Fist"
-    elif thumb_open and not any([index_finger_open, middle_finger_open, ring_finger_open, pinky_finger_open]):
+    elif thumb_open and not any(fingers_state[1:]):
         return "Thumbs Up" if landmarks[4].y < landmarks[3].y else "Thumbs Down"
-    elif index_finger_open and middle_finger_open and not any([ring_finger_open, pinky_finger_open]):
+    elif index_finger_open and middle_finger_open and not any(fingers_state[3:]):
         return "Peace"
-    elif thumb_open and index_finger_open and not any([middle_finger_open, ring_finger_open, pinky_finger_open]):
+    elif thumb_open and index_finger_open and not any(fingers_state[2:]):
         return "Okay"
     elif index_finger_open and pinky_finger_open and not any([middle_finger_open, ring_finger_open]):
         return "Rock!!"
@@ -55,7 +82,7 @@ while True:
     if not success:
         break
 
-    img = cv2.resize(img, (1920, 1080))
+    img = cv2.resize(img, (CAM_WIDTH, CAM_HEIGHT))
     img = cv2.flip(img, 1)
     h, w, c = img.shape
 
@@ -65,12 +92,11 @@ while True:
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(img_rgb)
 
-    cv2.rectangle(img, (0, 0), (w, 100), (40, 40, 40), cv2.FILLED)
-    
-    cv2.putText(img, f"Mode (Press 'm'): {current_mode}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.rectangle(img, (0, 0), (w, 100), COLOR_HEADER_BG, cv2.FILLED)
+    cv2.putText(img, f"Mode (Press 'm'): {current_mode}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, COLOR_TEXT_MAIN, 2)
 
-    if current_mode == "Writing":
-        cv2.putText(img, "1 Finger: Write  |  2 Fingers: Hover  |  3 Fingers: Erase", (20, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 200), 2)
+    if current_mode == MODE_WRITING:
+        cv2.putText(img, "1 Finger: Write  |  2 Fingers: Hover  |  3 Fingers: Erase", (20, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_TEXT_SUB, 2)
     
     if results.multi_hand_landmarks:
         for hand_lms in results.multi_hand_landmarks:
@@ -82,12 +108,12 @@ while True:
             mp_draw.draw_landmarks(img, hand_lms, mp_hands.HAND_CONNECTIONS)
 
             if len(lm_list) != 0:
-                if current_mode == "Gesture":
+                if current_mode == MODE_GESTURE:
                     gesture_name = classify_hand_landmarks(hand_lms.landmark)
-                    cv2.putText(img, f"Gesture: {gesture_name}", (30, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 0), 3)
+                    cv2.putText(img, f"Gesture: {gesture_name}", (30, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.5, COLOR_TEXT_GESTURE, 3)
                     xp, yp = 0, 0
 
-                elif current_mode == "Writing":
+                elif current_mode == MODE_WRITING:
                     x1, y1 = lm_list[8][1:]
                     
                     fingers = []
@@ -103,26 +129,26 @@ while True:
                             fingers.append(0)
 
                     if fingers[1] and fingers[2] and fingers[3]:
-                        cv2.circle(img, (x1, y1), brush_radius, (0, 0, 0), cv2.FILLED)
-                        cv2.putText(img, "Eraser", (x1+35, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+                        cv2.circle(img, (x1, y1), BRUSH_RADIUS, COLOR_ERASER, cv2.FILLED)
+                        cv2.putText(img, "Eraser", (x1+35, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_ERASER, 1)
                         
                         if xp == 0 and yp == 0:
                             xp, yp = x1, y1
                         
-                        cv2.line(img_canvas, (xp, yp), (x1, y1), (0, 0, 0), eraser_thickness)
+                        cv2.line(img_canvas, (xp, yp), (x1, y1), COLOR_ERASER, ERASER_THICKNESS)
                         xp, yp = x1, y1
 
                     elif fingers[1] and fingers[2]:
-                        cv2.circle(img, (x1, y1), 15, (0, 255, 0), 2)
+                        cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, COLOR_HOVER, 2)
                         xp, yp = x1, y1
 
                     elif fingers[1] and not fingers[2]:
-                        cv2.circle(img, (x1, y1), 15, draw_color, cv2.FILLED)
+                        cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, COLOR_DRAW, cv2.FILLED)
                         
                         if xp == 0 and yp == 0:
                             xp, yp = x1, y1
                         
-                        cv2.line(img_canvas, (xp, yp), (x1, y1), draw_color, brush_thickness)
+                        cv2.line(img_canvas, (xp, yp), (x1, y1), COLOR_DRAW, BRUSH_THICKNESS)
                         xp, yp = x1, y1
                     else:
                         xp, yp = 0, 0
@@ -135,18 +161,18 @@ while True:
     img = cv2.bitwise_and(img, img_inv)
     img = cv2.bitwise_or(img, img_canvas)
 
-    cv2.imshow(window_name, img)
+    cv2.imshow(WINDOW_NAME, img)
     
     key = cv2.waitKey(1)
-    if key == ord('q') or key == 27:
+    if key == KEY_QUIT_Q or key == KEY_QUIT_ESC:
         break
-    elif key == ord('c'):
+    elif key == KEY_CLEAR:
         img_canvas = np.zeros((h, w, 3), np.uint8)
-    elif key == ord('m'):
-        if current_mode == "Writing":
-            current_mode = "Gesture"
+    elif key == KEY_MODE:
+        if current_mode == MODE_WRITING:
+            current_mode = MODE_GESTURE
         else:
-            current_mode = "Writing"
+            current_mode = MODE_WRITING
 
 cap.release()
 cv2.destroyAllWindows()
