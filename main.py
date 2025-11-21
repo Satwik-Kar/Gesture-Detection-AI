@@ -10,14 +10,13 @@ MIN_DETECTION_CONF = 0.8
 MIN_TRACKING_CONF = 0.8
 
 BRUSH_THICKNESS = 10
-ERASER_THICKNESS = 150
-BRUSH_RADIUS = 130
+ERASER_SIZE = 150 
 HOVER_INDICATOR_RADIUS = 15
 
-COLOR_DRAW = (255, 0, 255)
-COLOR_ERASER = (0, 0, 0)
-COLOR_HOVER = (0, 255, 0)
-COLOR_HEADER_BG = (40, 40, 40)
+COLOR_DRAW = (0, 0, 255)      
+COLOR_ERASER = (255, 255, 255)        
+COLOR_HOVER = (0, 255, 0)       
+COLOR_HEADER_BG = (40, 40, 40)  
 COLOR_TEXT_MAIN = (255, 255, 255)
 COLOR_TEXT_SUB = (200, 200, 200)
 COLOR_TEXT_GESTURE = (255, 255, 0)
@@ -32,8 +31,8 @@ MODE_GESTURE = "Gesture"
 
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
-    min_detection_confidence=MIN_DETECTION_CONF,
-    min_tracking_confidence=MIN_TRACKING_CONF,
+    min_detection_confidence=MIN_DETECTION_CONF, 
+    min_tracking_confidence=MIN_TRACKING_CONF, 
     max_num_hands=1
 )
 mp_draw = mp.solutions.drawing_utils
@@ -122,7 +121,7 @@ while True:
 
     if current_mode == MODE_WRITING:
         cv2.putText(img, "1 Finger: Write  |  2 Fingers: Hover  |  3 Fingers: Erase", (20, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_TEXT_SUB, 2)
-
+    
     if results.multi_hand_landmarks:
         for hand_lms in results.multi_hand_landmarks:
             fingers = get_fingers_status(hand_lms.landmark)
@@ -144,13 +143,13 @@ while True:
                     x1, y1 = lm_list[8][1:]
                     
                     if fingers[1] and fingers[2] and fingers[3]:
-                        cv2.circle(img, (x1, y1), BRUSH_RADIUS, COLOR_ERASER, cv2.FILLED)
+                        cv2.circle(img, (x1, y1), ERASER_SIZE // 2, COLOR_ERASER, cv2.FILLED)
                         cv2.putText(img, "Eraser", (x1+35, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_ERASER, 1)
-
+                        
                         if xp == 0 and yp == 0:
                             xp, yp = x1, y1
-
-                        cv2.line(img_canvas, (xp, yp), (x1, y1), COLOR_ERASER, ERASER_THICKNESS)
+                        
+                        cv2.line(img_canvas, (xp, yp), (x1, y1), (0, 0, 0), ERASER_SIZE)
                         xp, yp = x1, y1
 
                     elif fingers[1] and fingers[2]:
@@ -159,10 +158,10 @@ while True:
 
                     elif fingers[1] and not fingers[2]:
                         cv2.circle(img, (x1, y1), HOVER_INDICATOR_RADIUS, COLOR_DRAW, cv2.FILLED)
-
+                        
                         if xp == 0 and yp == 0:
                             xp, yp = x1, y1
-
+                        
                         cv2.line(img_canvas, (xp, yp), (x1, y1), COLOR_DRAW, BRUSH_THICKNESS)
                         xp, yp = x1, y1
                     else:
@@ -177,14 +176,17 @@ while True:
     img = cv2.bitwise_or(img, img_canvas)
 
     cv2.imshow(WINDOW_NAME, img)
-
+    
     key = cv2.waitKey(1)
     if key == KEY_QUIT_Q or key == KEY_QUIT_ESC:
         break
     elif key == KEY_CLEAR:
         img_canvas = np.zeros((h, w, 3), np.uint8)
     elif key == KEY_MODE:
-        current_mode = MODE_GESTURE if current_mode == MODE_WRITING else MODE_WRITING
+        if current_mode == MODE_WRITING:
+            current_mode = MODE_GESTURE
+        else:
+            current_mode = MODE_WRITING
 
 cap.release()
 cv2.destroyAllWindows()
